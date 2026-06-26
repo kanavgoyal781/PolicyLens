@@ -6,12 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "dlq": "cat data/dlq/node-dead-letter.jsonl 2>/dev/null | tail -20 || echo 'No DLQ entries yet'",
+    "mlops:install": "cd mlops && pip install -r requirements.txt",
+    "mlops:server": "cd mlops && uvicorn server:app --reload --port 8001",
+    "mlops:extract": "cd mlops && python -c 'from extractor import extract_policy; import sys; print(extract_policy(sys.stdin.read()))'"
   },
   "dependencies": {
     "next": "16.2.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "unpdf": "^1.6.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -21,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }
