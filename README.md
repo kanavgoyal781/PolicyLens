@@ -23,9 +23,13 @@ Copy `.env.example` → `.env.local`:
 
 ```
 LLM_API_KEY=your_key_here
-LLM_BASE_URL=https://api.x.ai/v1
-LLM_MODEL=grok-2-latest
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_MODEL=openai/gpt-oss-120b
 ```
+
+(Or use xAI Grok: base https://api.x.ai/v1 and model grok-2-latest. Both are OpenAI-compatible.)
+
+**Note**: Groq deprecated `llama-3.3-70b-versatile` (June 2026). The replacement `openai/gpt-oss-120b` (keep the `openai/` prefix) supports the `response_format: {type:"json_object"}` used by the extractor. After editing env vars on Vercel you *must* manually Redeploy.
 
 - Key is used **only** in `app/api/extract/route.ts` (server). Never shipped to client.
 - Without key, uploads gracefully degrade to `{isInsuranceDocument:false, _fallback:true}` while sample still works.
@@ -41,7 +45,7 @@ npm run lint
 
 1. Push to GitHub.
 2. Import to Vercel (Next.js auto-detected).
-3. Add the three `LLM_*` env vars in Vercel project settings.
+3. Add the three `LLM_*` env vars in Vercel project settings (use Groq values above: BASE https://api.groq.com/openai/v1 , MODEL=openai/gpt-oss-120b). Set for both Production and Preview. Save, **then go to Deployments and click Redeploy** (Vercel does not auto-redeploy on env var changes).
 4. (Optional) Set `export const runtime = "nodejs";` is already present in the route for unpdf compatibility.
 
 Sample path works before the key is set.
