@@ -305,10 +305,6 @@ export default function PolicyLens() {
           </div>
         )}
       </main>
-
-      <footer className="border-t border-[#e2e8f0] py-4 text-center text-[11px] text-[#64748b]">
-        PolicyLens demo • Deterministic rules • LLM key never leaves server • Sample produces score 74, 2 gaps, exact exposures
-      </footer>
     </div>
   );
 }
