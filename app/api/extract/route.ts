@@ -17,12 +17,13 @@ export const runtime = "nodejs";
  */
 
 // Prompt duplicated list intentionally (LLM instruction); not code duplication that runs.
-// MUST MATCH mlops/extractor.py:23 and spec §6 exactly (see also taxonomy.ts COVERAGE_CODES).
+// Core contract (codes, schema, quality gate, DLQ) MUST MATCH mlops/extractor.py (see also taxonomy.ts COVERAGE_CODES).
+// Detailed ACORD 25 DISAMBIGUATION (namedInsured from INSURED label, carrier=null on placeholders) is Node/TS-specific.
 const SYSTEM_PROMPT = `You are an insurance document parser specialized in ACORD 25 Certificates of Liability Insurance. Convert raw COI text into strict JSON.
 
 ACORD 25 DISAMBIGUATION (critical):
-- namedInsured: the "INSURED" box (party policies issued to). NEVER the CERTIFICATE HOLDER, PRODUCER, or additional insured text (e.g. never "Cornell University").
-- carrier: primary insurer name from INSURER A / INSURER(S) section. Avoid mixing INSURED name with placeholder "INSURANCE COMPANY NAME".
+- namedInsured: the "INSURED" box (party policies issued to). NEVER the CERTIFICATE HOLDER, PRODUCER, or additional insured text (e.g. never "Cornell University"). In templates, take the name directly under/after the INSURED label (e.g. "SAMPLE VENDOR").
+- carrier: primary insurer name from INSURER A / INSURER(S) section. Avoid mixing INSURED name with placeholder "INSURANCE COMPANY NAME". If insurer field is only generic placeholder ("INSURANCE COMPANY NAME", "INSUARNCE COMPANY NAME", etc.), set carrier to null.
 - Dates: yyyy-mm-dd; read MM/DD/YYYY literally.
 - coverages: ONLY emit if at least one of limit/deductible/premium is not null (enforceable filter safety net). When inspecting raw text, use a POLICY NUMBER on the row as a signal of a real filled coverage (not blank template); associate values best-effort. Ignore blank pre-printed template rows (e.g. UMBRELLA, WORKERS_COMP with no filled values). 
 - Flattened grid: do best-effort association of numbers (limits/premiums/policy nums appear near coverage types).
@@ -31,7 +32,7 @@ Map to codes: GENERAL_LIABILITY, COMMERCIAL_PROPERTY, BUSINESS_OWNERS_POLICY, PR
 Respond ONLY with the JSON object, no prose. Schema: {namedInsured, carrier, policyNumber, effectiveDate (yyyy-mm-dd), expirationDate (yyyy-mm-dd), annualPremiumTotal, coverages: [{ code, rawLabel, limit, deductible, premium }], isInsuranceDocument }`;
 
 // Template injects raw extracted text (from unpdf). LLM must return strict JSON only.
-const USER_PROMPT_TEMPLATE = (rawText: string) => `Extract per ACORD rules above (INSURED box for namedInsured; only real filled coverages that have monetary values (limit/ded/prem); use POLICY NUMBER signals from text; best-effort on flattened numbers).
+const USER_PROMPT_TEMPLATE = (rawText: string) => `Extract per ACORD rules above (INSURED box for namedInsured — use value after INSURED label e.g. SAMPLE VENDOR not placeholders or holder; only real filled coverages that have monetary values (limit/ded/prem); use POLICY NUMBER signals from text; best-effort on flattened numbers; carrier=null on pure placeholder insurer text).
 {namedInsured, carrier, policyNumber, effectiveDate (yyyy-mm-dd),
   expirationDate (yyyy-mm-dd), annualPremiumTotal,
   coverages: [{ code, rawLabel, limit, deductible, premium }],
@@ -65,7 +66,7 @@ function validateExtractedPolicy(json: unknown, rawTextForDlq: string, filename?
   // Post-Zod real coverage filter (safety net): drop blank template rows
   // lacking any monetary value (limit/deductible/premium). LLM guidance in prompt
   // uses POLICY NUMBER presence in raw text as a signal, but filter+output shape is monetary-only.
-  // This aligns prompt wording to actual enforceable behavior.
+  // This aligns prompt wording (incl. coverage + header ACORD rules) to actual enforceable behavior.
   const data = {
     ...parsed.data,
     coverages: parsed.data.coverages.filter(
@@ -222,11 +223,8 @@ export async function POST(req: NextRequest) {
     const llmCall = await callLLM(rawText, filename);
 
     if (llmCall.result) {
-      // Success path (LLM + Zod + quality gate passed); DLQ writes + _dlqId only happen on failure paths (before graceful fallback)
-      const resp: Record<string, unknown> = { ...llmCall.result };
-      if (llmCall.dlqId) resp._dlqId = llmCall.dlqId;
-      if (llmCall.error) resp._extractionNote = llmCall.error;
-      return NextResponse.json(resp, { status: 200 });
+      // Success path (LLM + Zod + quality gate passed). _dlqId/_extractionNote only attached on failure paths.
+      return NextResponse.json({ ...llmCall.result }, { status: 200 });
     }
 
     // Graceful fallback + record the failure to DLQ if not already recorded inside callLLM

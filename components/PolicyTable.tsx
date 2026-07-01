@@ -12,6 +12,9 @@ interface PolicyTableProps {
   policy: PolicyData;
 }
 
+// Number of columns in the coverages table (Coverage, Limit, Deductible, Premium).
+const NUM_COVERAGE_COLS = 4;
+
 function formatMoney(n: number | null): string {
   if (n === null || n === undefined) return "—";
   return "$" + n.toLocaleString("en-US");
@@ -27,20 +30,43 @@ function formatDate(iso: string | null): string {
   if (mo < 1 || mo > 12 || da < 1 || da > 31) return iso;
   const d = new Date(Date.UTC(y, mo - 1, da));
   if (isNaN(d.getTime())) return iso;
+  // Post-construction UTC field check: catches normalized invalids (e.g. 2020-02-30 -> Mar 1) and falls back to raw iso.
+  if (d.getUTCFullYear() !== y || (d.getUTCMonth() + 1) !== mo || d.getUTCDate() !== da) return iso;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
+/**
+ * Pure helper to render the extracted policy subtitle (namedInsured bold if present).
+ * Joins only present values with " • " (no leading "—"). Keeps exact prior classes/output.
+ * Centralizes the previous inline truthy logic for clarity/maintainability.
+ */
+function getPolicySubtitle(policy: PolicyData): React.ReactNode {
+  const { namedInsured, carrier, policyNumber } = policy;
+  const nodes: React.ReactNode[] = [];
+  if (namedInsured) {
+    nodes.push(<span key="ni" className="font-semibold">{namedInsured}</span>);
+  }
+  if (carrier) {
+    nodes.push(<span key="ca" className="text-[#64748b]">{(namedInsured ? " • " : "") + carrier}</span>);
+  }
+  if (policyNumber) {
+    nodes.push(<span key="pn" className="text-[#64748b]">{(namedInsured || carrier ? " • " : "") + policyNumber}</span>);
+  }
+  if (nodes.length === 0) {
+    return "—";
+  }
+  return <>{nodes}</>;
+}
+
 export default function PolicyTable({ policy }: PolicyTableProps) {
-  const { namedInsured, carrier, policyNumber, effectiveDate, expirationDate, coverages } = policy;
+  const { effectiveDate, expirationDate, coverages } = policy;
 
   return (
     <div className="card p-5">
       <div className="mb-3">
         <div className="text-sm font-semibold tracking-tight mb-0.5">Extracted Policy</div>
         <div className="text-sm">
-          <span className="font-semibold">{namedInsured || "—"}</span>
-          {carrier && <span className="text-[#64748b]"> • {carrier}</span>}
-          {policyNumber && <span className="text-[#64748b]"> • {policyNumber}</span>}
+          {getPolicySubtitle(policy)}
         </div>
         <div className="text-xs text-[#64748b] mt-0.5">
           {formatDate(effectiveDate)} – {formatDate(expirationDate)}
@@ -59,7 +85,7 @@ export default function PolicyTable({ policy }: PolicyTableProps) {
           </thead>
           <tbody>
             {coverages.length === 0 && (
-              <tr><td colSpan={4} className="text-[#64748b] py-3">No coverages extracted.</td></tr>
+              <tr><td colSpan={NUM_COVERAGE_COLS} className="text-[#64748b] py-3">No coverages extracted.</td></tr>
             )}
             {coverages.map((c, i) => (
               <tr key={c.code || `cov-${i}`}>

@@ -136,7 +136,7 @@ export function computeCarrierMatches(
 
 /**
  * Savings vs current (spec §8.4). Returns {avgSavingsPct} using BEST (isBest) premium.
- * Input should be output of computeCarrierMatches (sorted, isBest on [0]).
+ * Input should be output of computeCarrierMatches (sorted); prefers explicit isBest flag (with [0] fallback).
  * Kept separate from computeCarrierMatches (signature/return untouched).
  * Note: message field removed (was unused in UI display; only pct shown in StatCards).
  */

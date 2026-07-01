@@ -1,7 +1,6 @@
 "use client";
 
 // Profile dropdowns (industry + revenue). Changing triggers live recompute everywhere via parent useMemo.
-// Employee count is static display (drives WC requirement in taxonomy).
 
 import React from "react";
 import { BusinessProfile } from "../lib/types";
@@ -41,8 +40,6 @@ export default function ProfileControls({ profile, onChange }: ProfileControlsPr
           <option key={b} value={b}>{REVENUE_LABELS[b]}</option>
         ))}
       </select>
-
-      <div className="text-xs text-[#64748b] ml-1">({profile.employeeCount} employees)</div>
     </div>
   );
 }

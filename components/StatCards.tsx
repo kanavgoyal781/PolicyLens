@@ -1,8 +1,7 @@
 "use client";
 
-// Stat cards (Coverage Score, Gaps, Coverages on Policy, Est. Savings).
+// Stat cards (Coverage Score, Gaps, Coverages on Policy).
 // Score uses getScoreColor (centralized in scoring).
-// Savings (only avgSavingsPct) from computeSavings to unbreak dashboard.
 
 import React from "react";
 import { ScoreResult } from "../lib/types";
@@ -10,10 +9,9 @@ import { getScoreColor } from "../lib/scoring";
 
 interface StatCardsProps {
   scoreResult: ScoreResult;
-  savings?: { avgSavingsPct: number };
 }
 
-export default function StatCards({ scoreResult, savings }: StatCardsProps) {
+export default function StatCards({ scoreResult }: StatCardsProps) {
   const { coverageScore, gaps, coveragesPresentCount } = scoreResult;
 
   // Use shared helper (centralized, matches Sec 9.2 thresholds for score gauge)
@@ -22,7 +20,7 @@ export default function StatCards({ scoreResult, savings }: StatCardsProps) {
   const gapsCount = gaps.length;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div className="stat-card">
         <div className="text-xs uppercase tracking-[1px] text-[#64748b] mb-1">
           Coverage Score
@@ -61,20 +59,6 @@ export default function StatCards({ scoreResult, savings }: StatCardsProps) {
         </div>
         <div className="text-[11px] text-[#64748b] mt-1">
           Normalized line items extracted
-        </div>
-      </div>
-
-      <div className="stat-card">
-        <div className="text-xs uppercase tracking-[1px] text-[#64748b] mb-1">
-          Est. Savings
-        </div>
-        <div className="text-5xl font-semibold tabular-nums tracking-tighter text-[#16a34a]">
-          {savings && savings.avgSavingsPct > 0
-            ? `${savings.avgSavingsPct}%`
-            : "—"}
-        </div>
-        <div className="text-[11px] text-[#64748b] mt-1">
-          vs current policy (BEST premium)
         </div>
       </div>
     </div>

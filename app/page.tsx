@@ -11,7 +11,7 @@ import { PolicyData, BusinessProfile, ScoreResult } from "../lib/types";
 import { DEFAULT_PROFILE } from "../lib/taxonomy";
 import { SAMPLE_POLICY } from "../lib/sample";
 import { computeScoreResult } from "../lib/scoring";
-import { computeCarrierMatches, computeSavings } from "../lib/carriers";
+import { computeCarrierMatches } from "../lib/carriers";
 
 import ProfileControls from "../components/ProfileControls";
 import UploadDropzone from "../components/UploadDropzone";
@@ -20,9 +20,6 @@ import ExposureBars from "../components/ExposureBars";
 import GapList from "../components/GapList";
 import PolicyTable from "../components/PolicyTable";
 import CarrierTable from "../components/CarrierTable";
-
-// Stable default (no fresh object on renders for savings fallback)
-const NO_SAVINGS = { avgSavingsPct: 0 };
 
 // MLOps dev helper gated via ?dlq=1 (avoids direct process.env.NODE_ENV in client bundle for hygiene)
 
@@ -69,7 +66,7 @@ export default function PolicyLens() {
     return null;
   }, [extracted]);
 
-  // Live recompute (key UX: profile changes instantly update score/gaps/exposures + carriers/savings).
+  // Live recompute (key UX: profile changes instantly update score/gaps/exposures + carriers).
   // Pure fns from lib/ guarantee determinism + exact sample numbers.
   const scoreResult: ScoreResult = useMemo(() => {
     if (!currentPolicy) {
@@ -87,14 +84,6 @@ export default function PolicyLens() {
     if (!currentPolicy) return [];
     return computeCarrierMatches(currentPolicy, profile);
   }, [currentPolicy, profile]);
-
-  // savings depends on carrierMatches (which depends on profile+policy) for
-  // live recompute; we intentionally omit profile here to avoid redundant
-  // memos (carrierMatches already reflects profile changes).
-  const savings = useMemo(() => {
-    if (!currentPolicy) return NO_SAVINGS;
-    return computeSavings(carrierMatches, currentPolicy.annualPremiumTotal);
-  }, [currentPolicy, carrierMatches]);
 
   // UI conditionals (drive the 4 top-level render branches: hero, not-ins, loading, dashboard).
   const hasData = currentPolicy !== null;
@@ -303,7 +292,7 @@ export default function PolicyLens() {
         {hasData && !isLoading && (
           <>
             {/* Stat cards */}
-            <StatCards scoreResult={scoreResult} savings={savings} />
+            <StatCards scoreResult={scoreResult} />
 
             <div className="h-6" />
 
