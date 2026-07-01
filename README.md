@@ -48,17 +48,17 @@ Sample path works before the key is set.
 
 ## Verification (acceptance)
 
-- Sample: score exactly 74, exactly 2 gaps (Cyber High + BI Medium), exposures exactly 15/40/80/70, 12 carriers, positive savings.
-- Upload of sample-coi.pdf reproduces identical dashboard.
+- Sample: score exactly 74, exactly 2 gaps (Cyber High + BI Medium), exposures exactly 15/40/80/70.
+- Upload of sample-coi.pdf reproduces identical dashboard (3 StatCards: Coverage Score/Gaps/Coverages on Policy; no Est. Savings or carrier table).
 - Non-insurance PDF shows friendly notice.
-- Profile changes are reactive.
+- Profile changes (Industry + Annual Revenue only) are reactive.
 - LLM key never appears in client bundle (grep build output).
 - All formatting uses $x,xxx , Mar 1, 2026 style, no lorem.
 
 ## Key files
 
 - `lib/scoring.ts` — pure deterministic engine (explain any number from here)
-- `lib/carriers.ts` — exact 12 carriers + match/premium
+- `lib/carriers.ts` — 12 carriers + match/premium (reference only; not used in current UI after cleanups)
 - `app/api/extract/route.ts` — unpdf + verbatim prompts + temp 0 + JSON mode + fallback
 - `lib/sample.ts` + `public/sample-coi.pdf`
 
