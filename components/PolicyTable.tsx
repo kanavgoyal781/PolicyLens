@@ -19,9 +19,15 @@ function formatMoney(n: number | null): string {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  const d = new Date(iso + "T00:00:00Z");
+  // TZ-safe: parse y-m-d manually + UTC to avoid off-by-one (e.g. Oct 1 becoming Sep 30 in some zones).
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const y = +m[1], mo = +m[2], da = +m[3];
+  // Simple range guard (per review): reject invalid month/day before Date.UTC normalizes them.
+  if (mo < 1 || mo > 12 || da < 1 || da > 31) return iso;
+  const d = new Date(Date.UTC(y, mo - 1, da));
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
 export default function PolicyTable({ policy }: PolicyTableProps) {

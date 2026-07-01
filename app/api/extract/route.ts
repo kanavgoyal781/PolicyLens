@@ -18,10 +18,20 @@ export const runtime = "nodejs";
 
 // Prompt duplicated list intentionally (LLM instruction); not code duplication that runs.
 // MUST MATCH mlops/extractor.py:23 and spec §6 exactly (see also taxonomy.ts COVERAGE_CODES).
-const SYSTEM_PROMPT = `You are an insurance document parser. You convert the raw text of a commercial insurance Certificate of Insurance (COI) or policy declarations page into strict JSON. Map every coverage you find to one of these codes: GENERAL_LIABILITY, COMMERCIAL_PROPERTY, BUSINESS_OWNERS_POLICY, PRODUCT_LIABILITY, PROFESSIONAL_LIABILITY, COMMERCIAL_AUTO, UMBRELLA, WORKERS_COMP, CYBER_LIABILITY, BUSINESS_INTERRUPTION, OTHER. Parse dollar limits and premiums as plain integers (no symbols or commas). Use null for anything not present. If the text is not an insurance document, set isInsuranceDocument to false and return empty coverages. Respond with ONLY the JSON object, no prose, no markdown fences.`;
+const SYSTEM_PROMPT = `You are an insurance document parser specialized in ACORD 25 Certificates of Liability Insurance. Convert raw COI text into strict JSON.
+
+ACORD 25 DISAMBIGUATION (critical):
+- namedInsured: the "INSURED" box (party policies issued to). NEVER the CERTIFICATE HOLDER, PRODUCER, or additional insured text (e.g. never "Cornell University").
+- carrier: primary insurer name from INSURER A / INSURER(S) section. Avoid mixing INSURED name with placeholder "INSURANCE COMPANY NAME".
+- Dates: yyyy-mm-dd; read MM/DD/YYYY literally.
+- coverages: ONLY emit if at least one of limit/deductible/premium is not null (enforceable filter safety net). When inspecting raw text, use a POLICY NUMBER on the row as a signal of a real filled coverage (not blank template); associate values best-effort. Ignore blank pre-printed template rows (e.g. UMBRELLA, WORKERS_COMP with no filled values). 
+- Flattened grid: do best-effort association of numbers (limits/premiums/policy nums appear near coverage types).
+
+Map to codes: GENERAL_LIABILITY, COMMERCIAL_PROPERTY, BUSINESS_OWNERS_POLICY, PRODUCT_LIABILITY, PROFESSIONAL_LIABILITY, COMMERCIAL_AUTO, UMBRELLA, WORKERS_COMP, CYBER_LIABILITY, BUSINESS_INTERRUPTION, OTHER. Parse $ as integers (null if absent). isInsuranceDocument false + empty coverages if not a COI.
+Respond ONLY with the JSON object, no prose. Schema: {namedInsured, carrier, policyNumber, effectiveDate (yyyy-mm-dd), expirationDate (yyyy-mm-dd), annualPremiumTotal, coverages: [{ code, rawLabel, limit, deductible, premium }], isInsuranceDocument }`;
 
 // Template injects raw extracted text (from unpdf). LLM must return strict JSON only.
-const USER_PROMPT_TEMPLATE = (rawText: string) => `Extract this document into the schema:
+const USER_PROMPT_TEMPLATE = (rawText: string) => `Extract per ACORD rules above (INSURED box for namedInsured; only real filled coverages that have monetary values (limit/ded/prem); use POLICY NUMBER signals from text; best-effort on flattened numbers).
 {namedInsured, carrier, policyNumber, effectiveDate (yyyy-mm-dd),
   expirationDate (yyyy-mm-dd), annualPremiumTotal,
   coverages: [{ code, rawLabel, limit, deductible, premium }],
@@ -52,7 +62,16 @@ function validateExtractedPolicy(json: unknown, rawTextForDlq: string, filename?
     return { data: null, dlqId, error: "zod_validation_failed" };
   }
 
-  const data = parsed.data;
+  // Post-Zod real coverage filter (safety net): drop blank template rows
+  // lacking any monetary value (limit/deductible/premium). LLM guidance in prompt
+  // uses POLICY NUMBER presence in raw text as a signal, but filter+output shape is monetary-only.
+  // This aligns prompt wording to actual enforceable behavior.
+  const data = {
+    ...parsed.data,
+    coverages: parsed.data.coverages.filter(
+      (c) => c.limit !== null || c.deductible !== null || c.premium !== null
+    ),
+  };
 
   // Quality gate (MLOps concept)
   const gate = passesQualityGate(data);
