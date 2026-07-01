@@ -11,7 +11,6 @@ import { PolicyData, BusinessProfile, ScoreResult } from "../lib/types";
 import { DEFAULT_PROFILE } from "../lib/taxonomy";
 import { SAMPLE_POLICY } from "../lib/sample";
 import { computeScoreResult } from "../lib/scoring";
-import { computeCarrierMatches } from "../lib/carriers";
 
 import ProfileControls from "../components/ProfileControls";
 import UploadDropzone from "../components/UploadDropzone";
@@ -19,7 +18,6 @@ import StatCards from "../components/StatCards";
 import ExposureBars from "../components/ExposureBars";
 import GapList from "../components/GapList";
 import PolicyTable from "../components/PolicyTable";
-import CarrierTable from "../components/CarrierTable";
 
 // MLOps dev helper gated via ?dlq=1 (avoids direct process.env.NODE_ENV in client bundle for hygiene)
 
@@ -66,7 +64,7 @@ export default function PolicyLens() {
     return null;
   }, [extracted]);
 
-  // Live recompute (key UX: profile changes instantly update score/gaps/exposures + carriers).
+  // Live recompute (key UX: profile changes instantly update score, gaps, and exposures).
   // Pure fns from lib/ guarantee determinism + exact sample numbers.
   const scoreResult: ScoreResult = useMemo(() => {
     if (!currentPolicy) {
@@ -78,11 +76,6 @@ export default function PolicyLens() {
       };
     }
     return computeScoreResult(currentPolicy, profile);
-  }, [currentPolicy, profile]);
-
-  const carrierMatches = useMemo(() => {
-    if (!currentPolicy) return [];
-    return computeCarrierMatches(currentPolicy, profile);
   }, [currentPolicy, profile]);
 
   // UI conditionals (drive the 4 top-level render branches: hero, not-ins, loading, dashboard).
@@ -305,18 +298,14 @@ export default function PolicyLens() {
             <div className="h-6" />
 
             {/* Extracted Policy */}
-            {currentPolicy && <PolicyTable policy={currentPolicy} />}
-
-            <div className="h-6" />
-
-            <CarrierTable matches={carrierMatches} />
+            <PolicyTable policy={currentPolicy} />
 
             <div className="h-6" />
 
             {/* Footer note */}
             <div className="text-[11px] text-[#64748b] mt-8 px-1">
               Changing industry or revenue instantly recomputes the score, gaps,
-              exposures, and carriers. All scoring logic is pure functions in{" "}
+              and exposures. All scoring logic is pure functions in{" "}
               <code className="font-mono text-xs">lib/scoring.ts</code>.
             </div>
           </>
