@@ -78,8 +78,8 @@ function validateExtractedPolicy(json: unknown, rawTextForDlq: string, filename?
  */
 async function callLLM(rawText: string, filename?: string): Promise<{ result: ValidatedPolicyData | null; dlqId?: string; error?: string }> {
   const apiKey = process.env.LLM_API_KEY;
-  const baseUrl = process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1";
-  const model = process.env.LLM_MODEL || "openai/gpt-oss-120b";
+  const baseUrl = process.env.LLM_BASE_URL || "https://api.x.ai/v1";
+  const model = process.env.LLM_MODEL || "grok-2-latest";
 
   if (!apiKey) {
     console.warn("[extract] No LLM_API_KEY present; will attempt sample signature fallback if applicable.");
@@ -87,7 +87,6 @@ async function callLLM(rawText: string, filename?: string): Promise<{ result: Va
   }
 
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
-  console.log("[extract] LLM call ->", model, "via", baseUrl.split("://")[1]?.split("/")[0] || baseUrl);
   const body = {
     model,
     messages: [

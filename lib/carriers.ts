@@ -1,8 +1,5 @@
 import { BusinessProfile, PolicyData, Carrier, CarrierMatch } from "./types";
-import {
-  satisfiesCoverage,
-  getRequiredCoverages,
-} from "./taxonomy";
+import { satisfiesCoverage, getRequiredCoverages } from "./taxonomy";
 
 /**
  * Carrier matching (spec §8).
@@ -14,19 +11,47 @@ import {
  */
 
 export const CARRIERS: Carrier[] = [
-  { name: "The Hartford", rate: 1.00, appetite: ["ECOMMERCE_CPG", "RETAIL", "CONTRACTORS"] },
-  { name: "Travelers", rate: 1.05, appetite: ["ECOMMERCE_CPG", "RESTAURANTS", "PROPERTY_MANAGEMENT"] },
-  { name: "Chubb", rate: 1.18, appetite: ["ECOMMERCE_CPG", "PROPERTY_MANAGEMENT"] },
-  { name: "Liberty Mutual", rate: 1.10, appetite: ["CONTRACTORS", "TRUCKING", "RETAIL"] },
-  { name: "Nationwide", rate: 1.08, appetite: ["RESTAURANTS", "RETAIL", "ECOMMERCE_CPG"] },
+  {
+    name: "The Hartford",
+    rate: 1.0,
+    appetite: ["ECOMMERCE_CPG", "RETAIL", "CONTRACTORS"],
+  },
+  {
+    name: "Travelers",
+    rate: 1.05,
+    appetite: ["ECOMMERCE_CPG", "RESTAURANTS", "PROPERTY_MANAGEMENT"],
+  },
+  {
+    name: "Chubb",
+    rate: 1.18,
+    appetite: ["ECOMMERCE_CPG", "PROPERTY_MANAGEMENT"],
+  },
+  {
+    name: "Liberty Mutual",
+    rate: 1.1,
+    appetite: ["CONTRACTORS", "TRUCKING", "RETAIL"],
+  },
+  {
+    name: "Nationwide",
+    rate: 1.08,
+    appetite: ["RESTAURANTS", "RETAIL", "ECOMMERCE_CPG"],
+  },
   { name: "CNA", rate: 1.12, appetite: ["PROPERTY_MANAGEMENT", "CONTRACTORS"] },
   { name: "The Hanover", rate: 1.06, appetite: ["ECOMMERCE_CPG", "RETAIL"] },
-  { name: "Hiscox", rate: 1.20, appetite: ["ECOMMERCE_CPG"] }, // cleaned: "PROFESSIONAL" was never a valid industry (spec §8.1 lists only the 7); harmless removal, appetite logic unchanged for all real profiles (trace: no industry=="PROFESSIONAL" in getRequired or profile flows; appetite.includes unchanged for all 7 real industries)
+  { name: "Hiscox", rate: 1.2, appetite: ["ECOMMERCE_CPG"] }, // cleaned: "PROFESSIONAL" was never a valid industry (spec §8.1 lists only the 7); harmless removal, appetite logic unchanged for all real profiles (trace: no industry=="PROFESSIONAL" in getRequired or profile flows; appetite.includes unchanged for all 7 real industries)
 
   { name: "Markel", rate: 1.22, appetite: ["RESTAURANTS", "CONTRACTORS"] },
   { name: "Coalition", rate: 1.15, appetite: ["ECOMMERCE_CPG", "RETAIL"] }, // cyber-strong
-  { name: "Berkshire GUARD", rate: 1.03, appetite: ["CONTRACTORS", "RETAIL", "TRUCKING"] },
-  { name: "Pie Insurance", rate: 0.98, appetite: ["RESTAURANTS", "RETAIL", "CONTRACTORS"] },
+  {
+    name: "Berkshire GUARD",
+    rate: 1.03,
+    appetite: ["CONTRACTORS", "RETAIL", "TRUCKING"],
+  },
+  {
+    name: "Pie Insurance",
+    rate: 0.98,
+    appetite: ["RESTAURANTS", "RETAIL", "CONTRACTORS"],
+  },
 ];
 
 // Deterministic jitter (no Math.random) so results stable for same inputs.
@@ -42,11 +67,14 @@ function hashString(str: string): number {
  * Coverage fit bonus (0-18 pts) = fraction of required coverages present *18.
  * Uses the shared getRequiredCoverages (unlike internal scoring split).
  */
-function getCoverageFitBonus(policy: PolicyData, profile: BusinessProfile): number {
+function getCoverageFitBonus(
+  policy: PolicyData,
+  profile: BusinessProfile,
+): number {
   const required = getRequiredCoverages(profile);
   if (required.length === 0) return 18;
   const satisfiedCount = required.filter((req) =>
-    policy.coverages.some((c) => satisfiesCoverage(c, req))
+    policy.coverages.some((c) => satisfiesCoverage(c, req)),
   ).length;
   return Math.round((satisfiedCount / required.length) * 18);
 }
@@ -58,7 +86,7 @@ function getCoverageFitBonus(policy: PolicyData, profile: BusinessProfile): numb
  */
 export function computeCarrierMatches(
   policy: PolicyData,
-  profile: BusinessProfile
+  profile: BusinessProfile,
 ): CarrierMatch[] {
   const bonus = getCoverageFitBonus(policy, profile);
   const industry = profile.industry;
@@ -80,7 +108,8 @@ export function computeCarrierMatches(
     };
     const revenueBase = revenueBaseMap[profile.annualRevenueBand] || 5200;
     const factor = 1 + ((96 - match) / 100) * 1.1;
-    const premium = Math.round( (revenueBase * carrier.rate * factor) / 100 ) * 100;
+    const premium =
+      Math.round((revenueBase * carrier.rate * factor) / 100) * 100;
 
     return {
       name: carrier.name,
@@ -106,20 +135,25 @@ export function computeCarrierMatches(
 }
 
 /**
- * Savings calc vs current (or default 6400 for sample).
- * Returns bestPremium + % + message for UI (StatCards + CarrierTable).
- * 0 or negative => "Competitively priced".
+ * Savings vs current (spec §8.4). Returns {avgSavingsPct} using BEST (isBest) premium.
+ * Input should be output of computeCarrierMatches (sorted, isBest on [0]).
+ * Kept separate from computeCarrierMatches (signature/return untouched).
+ * Note: message field removed (was unused in UI display; only pct shown in StatCards).
  */
 export function computeSavings(
   matches: CarrierMatch[],
-  currentPremium: number | null
-): { avgSavingsPct: number | null; bestPremium: number; message: string } {
-  if (!matches.length) return { avgSavingsPct: null, bestPremium: 0, message: "" };
-  const bestPremium = Math.min(...matches.map((m) => m.premium));
+  currentPremium: number | null,
+): { avgSavingsPct: number } {
   const current = currentPremium ?? 6400;
-  const pct = Math.round(((current - bestPremium) / current) * 100);
-  if (pct <= 0) {
-    return { avgSavingsPct: 0, bestPremium, message: "Competitively priced" };
+  if (!matches.length || current <= 0) {
+    return { avgSavingsPct: 0 };
   }
-  return { avgSavingsPct: pct, bestPremium, message: `Est. savings vs. current: ${pct}%` };
+  // Robust: prefer explicit isBest over [0] (handles callers that might pass unsorted)
+  const best = matches.find((m) => m.isBest) ?? matches[0];
+  const bestPremium = best ? best.premium : 0;
+  if (bestPremium >= current) {
+    return { avgSavingsPct: 0 };
+  }
+  const avgSavingsPct = Math.round(((current - bestPremium) / current) * 100);
+  return { avgSavingsPct };
 }

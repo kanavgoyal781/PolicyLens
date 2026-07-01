@@ -36,7 +36,7 @@ function clamp(value: number, min: number, max: number): number {
  */
 export function computeCoverageScore(
   policy: PolicyData,
-  profile: BusinessProfile
+  profile: BusinessProfile,
 ): number {
   // Note: list construction duplicated (see getRequiredCoverages in taxonomy + computeGaps here); carriers uses shared version. Kept for minimal diff + exact sample behavior.
   if (!policy.isInsuranceDocument) return 0;
@@ -91,7 +91,7 @@ export function computeCoverageScore(
  */
 export function computeExposures(
   policy: PolicyData,
-  profile: BusinessProfile
+  profile: BusinessProfile,
 ): Exposure[] {
   const bases = EXPOSURE_BASES[profile.industry];
   const present = policy.coverages;
@@ -101,7 +101,10 @@ export function computeExposures(
 
   // Property Damage
   let property = bases.property;
-  if (hasCoverage("COMMERCIAL_PROPERTY") || hasCoverage("BUSINESS_OWNERS_POLICY")) {
+  if (
+    hasCoverage("COMMERCIAL_PROPERTY") ||
+    hasCoverage("BUSINESS_OWNERS_POLICY")
+  ) {
     property -= 45;
   }
   property = clamp(property, 5, 100);
@@ -130,10 +133,22 @@ export function computeExposures(
   const toBand = (v: number): "Low" | "Medium" | "High" => getExposureBand(v);
 
   return [
-    { category: "Property Damage", value: Math.round(property), band: toBand(property) },
-    { category: "Liability", value: Math.round(liability), band: toBand(liability) },
+    {
+      category: "Property Damage",
+      value: Math.round(property),
+      band: toBand(property),
+    },
+    {
+      category: "Liability",
+      value: Math.round(liability),
+      band: toBand(liability),
+    },
     { category: "Cyber", value: Math.round(cyber), band: toBand(cyber) },
-    { category: "Business Interruption", value: Math.round(bi), band: toBand(bi) },
+    {
+      category: "Business Interruption",
+      value: Math.round(bi),
+      band: toBand(bi),
+    },
   ];
 }
 
@@ -145,7 +160,7 @@ export function computeExposures(
  */
 export function computeGaps(
   policy: PolicyData,
-  profile: BusinessProfile
+  profile: BusinessProfile,
 ): Gap[] {
   if (!policy.isInsuranceDocument) return [];
 
@@ -163,12 +178,17 @@ export function computeGaps(
   }
 
   const whyMap: Partial<Record<CoverageCode, string>> = {
-    CYBER_LIABILITY: "Handles customer data and online payments; a breach is uninsured without this.",
-    BUSINESS_INTERRUPTION: "No income protection if operations stop after a covered loss.",
-    GENERAL_LIABILITY: "Third-party injury and property-damage claims would be paid out of pocket.",
+    CYBER_LIABILITY:
+      "Handles customer data and online payments; a breach is uninsured without this.",
+    BUSINESS_INTERRUPTION:
+      "No income protection if operations stop after a covered loss.",
+    GENERAL_LIABILITY:
+      "Third-party injury and property-damage claims would be paid out of pocket.",
     PRODUCT_LIABILITY: "Product-related claims would be paid out of pocket.",
-    COMMERCIAL_PROPERTY: "Physical assets and premises are unprotected without this.",
-    COMMERCIAL_AUTO: "Vehicle-related liability and physical damage claims are uninsured.",
+    COMMERCIAL_PROPERTY:
+      "Physical assets and premises are unprotected without this.",
+    COMMERCIAL_AUTO:
+      "Vehicle-related liability and physical damage claims are uninsured.",
     WORKERS_COMP: "Employee injury claims would be paid out of pocket.",
     PROFESSIONAL_LIABILITY: "Errors and omissions claims would be uninsured.",
     UMBRELLA: "Excess liability beyond primary policy limits is uncovered.",
@@ -181,7 +201,9 @@ export function computeGaps(
         code: req,
         label: getCoverageLabel(req),
         severity: "High",
-        why: whyMap[req] || "This coverage is essential for the selected industry.",
+        why:
+          whyMap[req] ||
+          "This coverage is essential for the selected industry.",
       });
     }
   }
@@ -193,7 +215,9 @@ export function computeGaps(
         code: req,
         label: getCoverageLabel(req),
         severity: "Medium",
-        why: whyMap[req] || "This coverage is recommended for the selected industry.",
+        why:
+          whyMap[req] ||
+          "This coverage is recommended for the selected industry.",
       });
     }
   }
@@ -207,7 +231,7 @@ export function computeGaps(
  */
 export function computeScoreResult(
   policy: PolicyData,
-  profile: BusinessProfile
+  profile: BusinessProfile,
 ): ScoreResult {
   const coverageScore = computeCoverageScore(policy, profile);
   const exposures = computeExposures(policy, profile);
@@ -244,7 +268,7 @@ export function getExposureBand(value: number): "Low" | "Medium" | "High" {
 
 /**
  * Score gauge color (used by StatCards). >=75 good (green).
- * Different thresholds than exposure bands and carrier match colors.
+ * Different thresholds than exposure bands (70/40). Carrier match % colors were for removed UI display.
  */
 export function getScoreColor(score: number): string {
   if (score >= 75) return "#16a34a";

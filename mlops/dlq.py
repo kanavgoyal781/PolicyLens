@@ -14,16 +14,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# On serverless / Vercel the Python sidecar (if used) should also use /tmp if DLQ_DIR not provided.
-_default = "data/dlq"
-if not os.environ.get("DLQ_DIR") and (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")):
-    _default = os.path.join("/tmp", "policylens-dlq")
-DLQ_DIR = Path(os.environ.get("DLQ_DIR", _default))
-
-try:
-    DLQ_DIR.mkdir(parents=True, exist_ok=True)
-except Exception:
-    pass  # non-fatal for demo sidecar
+DLQ_DIR = Path(os.environ.get("DLQ_DIR", "data/dlq"))
+DLQ_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass

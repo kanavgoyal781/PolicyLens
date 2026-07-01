@@ -31,8 +31,8 @@ DOCUMENT TEXT:
 {raw_text}
 \"\"\""""
 
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.x.ai/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "grok-2-latest")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 
 MAX_RETRIES = 2
